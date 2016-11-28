@@ -5,10 +5,6 @@ import re
 
 from datetime import datetime
 
-SOJI_NOTES_DIR = os.getenv('SOJI_NOTES_DIR')
-todays_note_file = ('{0}/engineering-log-{1}.org'
-                    .format(SOJI_NOTES_DIR,
-                            datetime.now().strftime('%Y-%m-%d')))
 
 RED = "%F{red}"
 YELLOW = "%F{yellow}"
@@ -16,46 +12,65 @@ GREEN = "%F{green}"
 WHITE = "%F{white}"
 NOCOLOR = "%f"
 
-lunch = False
-pom_count = 0
-meeting_count = 0
 
-def get_actions(filename):
-    with open(todays_note_file, 'r') as f:
+def get_todays_note_file():
+    SOJI_NOTES_DIR = os.getenv('SOJI_NOTES_DIR')
+    return ('{0}/engineering-log-{1}.org'
+            .format(SOJI_NOTES_DIR,
+                    datetime.now().strftime('%Y-%m-%d')))
+
+
+def get_actions():
+    with open(get_todays_note_file(), 'r') as f:
         for line in f:
-            m = re.search('\*\* (start|break|lunch|meeting) -- (.*) -- ([0-9]{2}:[0-9]{2}(AM|PM))', line)
+            m = re.search(('\*\* (start|break|lunch|meeting) '
+                           '-- (.*) -- '
+                           '([0-9]{2}:[0-9]{2}(AM|PM))'), line)
+
             if m is not None:
                 yield m.group(1, 2, 3)
 
-for action, name, timestamp in get_actions(todays_note_file):
-    if action == 'start':
-        pom_count += 1
-    elif action == 'meeting':
-        meeting_count += 1
-    elif action == 'lunch':
-        lunch = True
 
-if pom_count < 4:
-    colors = (WHITE, RED)
-elif pom_count < 8:
-    colors = (WHITE, YELLOW)
-else:
-    colors = (WHITE, GREEN)
-poms = u'{0} pomodoros {1}{2}'.format(colors[0], colors[1], pom_count)
+def header():
+    lunch = False
+    pom_count = 0
+    meeting_count = 0
 
-if lunch:
-    checkbox = u'{0}[✔]'.format(GREEN)
-else:
-    checkbox = u'{0}[✘]'.format(RED)
-lunch_str = u'{0} lunch {1}'.format(WHITE, checkbox)
+    for action, name, timestamp in get_actions():
+        if action == 'start':
+            pom_count += 1
+        elif action == 'meeting':
+            meeting_count += 1
+        elif action == 'lunch':
+            lunch = True
 
-meetings = u'{0} meetings {1}{2}'.format(WHITE, GREEN, meeting_count)
+    if pom_count < 4:
+        colors = (WHITE, RED)
+    elif pom_count < 8:
+        colors = (WHITE, YELLOW)
+    else:
+        colors = (WHITE, GREEN)
+    poms = u'{0} po {1}{2}'.format(colors[0], colors[1], pom_count)
 
-now = datetime.combine(datetime.min, datetime.now().time())
-action_dt = datetime.combine(datetime.min, datetime.strptime(timestamp, '%I:%M%p').time())
+    if lunch:
+        checkbox = u'{0}✔'.format(GREEN)
+    else:
+        checkbox = u'{0}✘'.format(RED)
+    lunch_str = u'{0} lu {1}'.format(WHITE, checkbox)
 
-status = '{0} -- {1} min'.format(name, (now - action_dt).seconds / 60)
+    meetings = u'{0} me {1}{2}'.format(WHITE, GREEN, meeting_count)
 
-print (u'{0} {1} {2} {3} {4} {5}'
-       .format(lunch_str, poms, meetings, RED, status, NOCOLOR)
-       .encode('utf-8'))
+    now = datetime.combine(datetime.min, datetime.now().time())
+    action_dt = datetime.combine(datetime.min, datetime.strptime(timestamp, '%I:%M%p').time())
+
+    status = '{0} -- {1} min'.format(name, (now - action_dt).seconds / 60)
+
+    return (u'{0} {1} {2} {3} {4} {5}'
+            .format(lunch_str, poms, meetings, RED, status, NOCOLOR)
+            .encode('utf-8'))
+
+
+try:
+    print header()
+except:
+    print ''
